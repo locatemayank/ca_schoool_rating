@@ -100,6 +100,18 @@ function enrich(base, distanceMi) {
     const sub = { ...modeledSub };
     if (latestProf != null) sub.testScores = Math.round(latestProf); // real % met/above
     if (R.enr) sub.enrollment = R.enr;                               // real enrollment
+
+    // REAL score breakdown (latest year) + derived proficiency growth.
+    const ela = R.ela ? R.ela[String(latestY)] : null;
+    const mathP = R.math ? R.math[String(latestY)] : null;
+    const statePct = R.pct ? R.pct[String(latestY)] : null;
+    const profYears = years.filter((y) => R.p[String(y)] != null);
+    const firstProf = profYears.length ? R.p[String(profYears[0])] : null;
+    const profGrowth = (firstProf != null && latestProf != null)
+      ? Math.round((latestProf - firstProf) * 10) / 10 : null;
+    const growthYears = profYears.length
+      ? `${profYears[0]}→${profYears[profYears.length - 1]}` : "";
+
     return {
       ...base,
       distanceMi: Math.round(distanceMi * 100) / 100,
@@ -108,6 +120,12 @@ function enrich(base, distanceMi) {
       trend: trendOf(history),
       sub,
       proficiency: latestProf,
+      breakdown: {
+        latestYear: latestY,
+        ela, math: mathP, combined: latestProf,
+        statePercentile: statePct,
+        profGrowth, growthYears,
+      },
       ratingProvenance: "real",           // CAASPP decile
       dataYears: years,
       provenance: "real-location-real-caaspp-rating",

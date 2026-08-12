@@ -170,6 +170,19 @@ body {
   border-radius: 10px; padding: 10px 12px; font-size: 13px; margin: 4px 0 14px;
 }
 .rating-explainer code { background: #fef3c7; padding: 1px 5px; border-radius: 4px; }
+
+/* Score breakdown */
+.bd { margin: 6px 0 14px; }
+.bd-row {
+  display: grid; grid-template-columns: 1fr auto; align-items: center;
+  gap: 6px 12px; padding: 8px 0; border-bottom: 1px solid var(--line);
+}
+.bd-l { font-size: 13px; color: var(--ink); }
+.bd-v { font-size: 15px; font-weight: 800; color: var(--ink); text-align: right; }
+.bd-bar {
+  grid-column: 1 / -1; height: 8px; background: #eef2f7; border-radius: 999px; overflow: hidden;
+}
+.bd-bar > span { display: block; height: 100%; background: var(--brand); border-radius: 999px; }
 .kpi-row { display: flex; gap: 14px; flex-wrap: wrap; margin: 14px 0; }
 .kpi {
   flex: 1; min-width: 130px; background: #f8fafc; border: 1px solid var(--line);

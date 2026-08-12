@@ -135,6 +135,42 @@ function insights(s) {
   return out;
 }
 
+/* ---------- real score breakdown (CAASPP) ---------- */
+function scoreBreakdown(s) {
+  const b = s.breakdown;
+  if (!b) return "";
+  const clamp = (v) => Math.max(0, Math.min(100, v));
+  const bar = (v) => (v == null ? "" :
+    `<div class="bd-bar"><span style="width:${clamp(v)}%"></span></div>`);
+  const row = (label, val, suffix, tag) =>
+    `<div class="bd-row">
+       <div class="bd-l">${label} ${tag}</div>
+       <div class="bd-v">${val == null ? "N/A" : val + (suffix || "")}</div>
+       ${val == null ? "" : bar(val)}
+     </div>`;
+  const real = `<span class="tag-real">real</span>`;
+  const derived = `<span class="tag-real">real·derived</span>`;
+  const na = `<span class="tag-modeled">not wired</span>`;
+  const g = b.profGrowth;
+  const growthTxt = g == null ? "N/A"
+    : `${g >= 0 ? "+" : ""}${g} pts (${b.growthYears})`;
+  return `
+    <h3 style="margin-top:6px">Score breakdown — ${b.latestYear}
+      <span class="badge real">CAASPP</span></h3>
+    <div class="bd">
+      ${row("ELA proficiency (% met/above)", b.ela, "%", real)}
+      ${row("Math proficiency (% met/above)", b.math, "%", real)}
+      ${row("Combined proficiency", b.combined, "%", real)}
+      ${row("State percentile", b.statePercentile, "", real)}
+      <div class="bd-row"><div class="bd-l">Academic growth (proficiency change) ${derived}</div>
+        <div class="bd-v">${growthTxt}</div></div>
+      <div class="bd-row"><div class="bd-l">College readiness (A‑G / AP) ${na}</div>
+        <div class="bd-v">N/A</div></div>
+      <div class="bd-row"><div class="bd-l">Attendance ${na}</div>
+        <div class="bd-v">N/A</div></div>
+    </div>`;
+}
+
 /* ---------- detail modal ---------- */
 function openDetail(id) {
   const s = LAST.data.all.find((x) => x.id === id);
@@ -187,6 +223,8 @@ function openDetail(id) {
     ${historyChart(s.history)}
 
     ${explainer}
+
+    ${isReal ? scoreBreakdown(s) : ""}
 
     <div class="kpi-row">
       <div class="kpi"><div class="lbl">${isReal ? "% Met/Above (CAASPP)" : "Test scores"}</div><div class="val">${s.sub.testScores}<span style="font-size:12px;color:#94a3b8">${isReal ? "%" : "/100"}</span></div></div>
