@@ -99,9 +99,15 @@ function schoolCard(s) {
       </div>
     </div>
     <div class="sc-metrics">
-      <div class="metric">Enrollment<b>${s.sub.enrollment.toLocaleString()}</b></div>
-      <div class="metric">Students/Teacher<b>${s.sub.studentTeacherRatio}:1</b></div>
-      <div class="metric">Grad rate<b>${s.sub.graduationPct}%</b></div>
+      ${s.breakdown ? `
+        <div class="metric">Enrollment<b>${s.sub.enrollment.toLocaleString()}</b></div>
+        <div class="metric">ELA %<b>${s.breakdown.ela == null ? "—" : s.breakdown.ela + "%"}</b></div>
+        <div class="metric">Math %<b>${s.breakdown.math == null ? "—" : s.breakdown.math + "%"}</b></div>
+      ` : `
+        <div class="metric">Enrollment<b>${s.sub.enrollment.toLocaleString()}</b></div>
+        <div class="metric">Students/Teacher<b>${s.sub.studentTeacherRatio}:1</b></div>
+        <div class="metric">Grad rate<b>${s.sub.graduationPct}%</b></div>
+      `}
     </div>
     <div class="trend-line">
       ${sparkline(s.history)}
@@ -126,12 +132,20 @@ function insights(s) {
   const low = s.history.reduce((a, b) => (b.rating < a.rating ? b : a));
   out.push(["neu", `Peak rating <b>${peak.rating}</b> in ${peak.year}; lowest <b>${low.rating}</b> in ${low.year}.`]);
 
-  if (s.sub.studentTeacherRatio <= 20) out.push(["pos", `Favorable student:teacher ratio of <b>${s.sub.studentTeacherRatio}:1</b>.`]);
-  else if (s.sub.studentTeacherRatio >= 26) out.push(["neg", `High student:teacher ratio of <b>${s.sub.studentTeacherRatio}:1</b> — larger classes.`]);
-
-  if (s.sub.graduationPct >= 95 && s.level === "High") out.push(["pos", `Excellent graduation rate of <b>${s.sub.graduationPct}%</b>.`]);
-  if (s.sub.collegeReadiness >= 75 && s.level === "High") out.push(["pos", `High college-readiness sub-score (<b>${s.sub.collegeReadiness}/100</b>).`]);
-  if (s.sub.equity < 45) out.push(["neg", `Equity sub-score is low (<b>${s.sub.equity}/100</b>) — outcomes vary across student groups.`]);
+  const real = s.ratingProvenance === "real";
+  if (real && s.breakdown) {
+    const g = s.breakdown.profGrowth;
+    if (g != null) out.push([g >= 0 ? "pos" : "neg",
+      `Academic progress (CAASPP proficiency change): <b>${g >= 0 ? "+" : ""}${g} pts</b> over ${s.breakdown.growthYears}.`]);
+    out.push(["neu",
+      `Latest CAASPP: ELA <b>${s.breakdown.ela == null ? "n/a" : s.breakdown.ela + "%"}</b>, Math <b>${s.breakdown.math == null ? "n/a" : s.breakdown.math + "%"}</b>, state percentile <b>${s.breakdown.statePercentile == null ? "n/a" : s.breakdown.statePercentile}</b>.`]);
+  } else {
+    if (s.sub.studentTeacherRatio <= 20) out.push(["pos", `Favorable student:teacher ratio of <b>${s.sub.studentTeacherRatio}:1</b>.`]);
+    else if (s.sub.studentTeacherRatio >= 26) out.push(["neg", `High student:teacher ratio of <b>${s.sub.studentTeacherRatio}:1</b> — larger classes.`]);
+    if (s.sub.graduationPct >= 95 && s.level === "High") out.push(["pos", `Excellent graduation rate of <b>${s.sub.graduationPct}%</b>.`]);
+    if (s.sub.collegeReadiness >= 75 && s.level === "High") out.push(["pos", `High college-readiness sub-score (<b>${s.sub.collegeReadiness}/100</b>).`]);
+    if (s.sub.equity < 45) out.push(["neg", `Equity sub-score is low (<b>${s.sub.equity}/100</b>).`]);
+  }
   return out;
 }
 
@@ -227,20 +241,18 @@ function openDetail(id) {
     ${isReal ? scoreBreakdown(s) : ""}
 
     <div class="kpi-row">
-      <div class="kpi"><div class="lbl">${isReal ? "% Met/Above (CAASPP)" : "Test scores"}</div><div class="val">${s.sub.testScores}<span style="font-size:12px;color:#94a3b8">${isReal ? "%" : "/100"}</span></div></div>
-      <div class="kpi"><div class="lbl">Academic progress <span class="tag-modeled">modeled</span></div><div class="val">${s.sub.academicProgress}<span style="font-size:12px;color:#94a3b8">/100</span></div></div>
-      <div class="kpi"><div class="lbl">Equity <span class="tag-modeled">modeled</span></div><div class="val">${s.sub.equity}<span style="font-size:12px;color:#94a3b8">/100</span></div></div>
-      <div class="kpi"><div class="lbl">College ready <span class="tag-modeled">modeled</span></div><div class="val">${s.sub.collegeReadiness}<span style="font-size:12px;color:#94a3b8">/100</span></div></div>
+      <div class="kpi"><div class="lbl">Enrollment ${isReal ? '<span class="tag-real">real</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${s.sub.enrollment.toLocaleString()}</div></div>
+      <div class="kpi"><div class="lbl">Academic progress ${isReal ? '<span class="tag-real">real·derived</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? (s.breakdown && s.breakdown.profGrowth != null ? ((s.breakdown.profGrowth >= 0 ? "+" : "") + s.breakdown.profGrowth + " pts") : "N/A") : (s.sub.academicProgress + " /100")}</div></div>
+      <div class="kpi"><div class="lbl">Graduation ${isReal ? '<span class="tag-modeled">not wired</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? "N/A" : s.sub.graduationPct + "%"}</div></div>
     </div>
     <div class="kpi-row">
-      <div class="kpi"><div class="lbl">Enrollment ${isReal ? '<span class="tag-real">real</span>' : ""}</div><div class="val">${s.sub.enrollment.toLocaleString()}</div></div>
-      <div class="kpi"><div class="lbl">Students / teacher <span class="tag-modeled">modeled</span></div><div class="val">${s.sub.studentTeacherRatio}:1</div></div>
-      <div class="kpi"><div class="lbl">Low-income <span class="tag-modeled">modeled</span></div><div class="val">${s.sub.lowIncomePct}%</div></div>
-      <div class="kpi"><div class="lbl">Graduation <span class="tag-modeled">modeled</span></div><div class="val">${s.sub.graduationPct}%</div></div>
+      <div class="kpi"><div class="lbl">Equity ${isReal ? '<span class="tag-modeled">not wired</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? "N/A" : s.sub.equity + " /100"}</div></div>
+      <div class="kpi"><div class="lbl">College ready ${isReal ? '<span class="tag-modeled">not wired</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? "N/A" : s.sub.collegeReadiness + " /100"}</div></div>
+      <div class="kpi"><div class="lbl">Students / teacher ${isReal ? '<span class="tag-modeled">not wired</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? "N/A" : s.sub.studentTeacherRatio + ":1"}</div></div>
+      <div class="kpi"><div class="lbl">Low-income ${isReal ? '<span class="tag-modeled">not wired</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? "N/A" : s.sub.lowIncomePct + "%"}</div></div>
     </div>
     <p style="font-size:12px;color:#64748b;margin:4px 0 0">
-      ${isReal ? "Rating, decade history, “% Met/Above” and enrollment are REAL (CAASPP/CA DOE). " : ""}Fields tagged
-      <span class="tag-modeled">modeled</span> are placeholders (not from a data feed yet) — see “How the rating is calculated” for how to make them real.
+      ${isReal ? 'REAL from CAASPP/CA DOE: rating, decade history, ELA/Math %, state percentile, academic progress (proficiency change), enrollment. Items marked <span class="tag-modeled">not wired</span> are shown as N/A (not simulated) until the matching CDE feed is connected — see README.' : 'This school had no CAASPP match, so values are modeled placeholders.'}
     </p>
 
     <h3>Insights</h3>
