@@ -215,7 +215,7 @@ function openDetail(id) {
          (all grades, all students), i.e. the school is ranked against every CA
          school that year — the same idea GreatSchools' test-score rating uses.
          Latest year proficiency: <b>${s.proficiency != null ? s.proficiency + "%" : "n/a"}</b>.
-         History shows real CAASPP years ${yrs} (2020–21 had no statewide testing).
+         History shows real CAASPP years ${yrs} (2020–21 had no statewide testing).${(s.acct && s.acct.ratingYear != null) ? ` The most recent point (<b>${s.acct.year}</b>) is a REAL statewide decile computed from the CA Dashboard <b>ELA+Math Distance‑from‑Standard</b> rank (the 2025 CAASPP proficiency file isn't loaded yet, so 2025 uses the Dashboard academic measure).` : ""}
          Small differences vs GreatSchools come from their extra components
          (academic growth, graduation/college-readiness, equity) and their exact
          weighting; this app currently uses the test-score component only.

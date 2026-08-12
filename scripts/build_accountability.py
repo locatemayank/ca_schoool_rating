@@ -22,7 +22,7 @@ Output: ../data/accountability.js -> window.SCHOOL_ACCT = {
         }
 """
 
-import csv, os, sys, json
+import csv, math, os, sys, json
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "data", "accountability.js")
@@ -82,6 +82,21 @@ def main():
 
     cds_all = (set(grad) | set(chronic) | set(cci) | set(ela_ch) | set(math_ch)
                | set(ela_st) | set(math_st))
+
+    # REAL year-YEAR decile (1-10): statewide percentile rank of the combined
+    # ELA+Math Distance-from-Standard (mean of the two current DFS values).
+    combined = {}
+    for cds in (set(ela_st) & set(math_st)):
+        combined[cds] = (ela_st[cds] + math_st[cds]) / 2.0
+    for cds in (set(ela_st) ^ set(math_st)):  # only one subject present
+        combined[cds] = ela_st.get(cds, math_st.get(cds))
+    ranked = sorted(combined.items(), key=lambda kv: kv[1])
+    n = len(ranked)
+    decile_year = {}
+    for i, (cds, _v) in enumerate(ranked):
+        pr = (i + 0.5) / n if n else 0
+        decile_year[cds] = max(1, min(10, int(math.ceil(pr * 10))))
+
     out = {}
     for cds in cds_all:
         rec = {"year": int(YEAR)}
@@ -100,6 +115,8 @@ def main():
             rec["elaDFS"] = round(ela_st[cds], 1)   # ELA Distance from Standard (pts)
         if cds in math_st:
             rec["mathDFS"] = round(math_st[cds], 1)
+        if cds in decile_year:
+            rec["ratingYear"] = decile_year[cds]   # 1-10 statewide DFS decile (YEAR)
         out[cds] = rec
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)

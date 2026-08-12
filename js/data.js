@@ -112,12 +112,23 @@ function enrich(base, distanceMi) {
     const growthYears = profYears.length
       ? `${profYears[0]}→${profYears[profYears.length - 1]}` : "";
 
+    // Append a REAL current-year (e.g. 2025) decile from the CA Dashboard
+    // ELA+Math Distance-from-Standard rank, extending the rating & history.
+    const acctRec = (window.SCHOOL_ACCT || {})[base.id] || null;
+    let hist2 = history, curRating = rating, yearsAll = years;
+    if (acctRec && acctRec.ratingYear != null && acctRec.year
+        && !years.includes(acctRec.year)) {
+      hist2 = history.concat([{ year: acctRec.year, rating: acctRec.ratingYear }]);
+      curRating = acctRec.ratingYear;
+      yearsAll = years.concat([acctRec.year]);
+    }
+
     return {
       ...base,
       distanceMi: Math.round(distanceMi * 100) / 100,
-      rating,
-      history,
-      trend: trendOf(history),
+      rating: curRating,
+      history: hist2,
+      trend: trendOf(hist2),
       sub,
       proficiency: latestProf,
       breakdown: {
@@ -126,9 +137,9 @@ function enrich(base, distanceMi) {
         statePercentile: statePct,
         profGrowth, growthYears,
       },
-      acct: (window.SCHOOL_ACCT || {})[base.id] || null, // REAL CA Dashboard
-      ratingProvenance: "real",           // CAASPP decile
-      dataYears: years,
+      acct: acctRec,                       // REAL CA Dashboard (+ ratingYear)
+      ratingProvenance: "real",           // CAASPP decile (+ Dashboard current yr)
+      dataYears: yearsAll,
       provenance: "real-location-real-caaspp-rating",
     };
   }
