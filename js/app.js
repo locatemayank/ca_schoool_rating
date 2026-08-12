@@ -176,6 +176,10 @@ function scoreBreakdown(s) {
       ${row("Math proficiency (% met/above)", b.math, "%", real)}
       ${row("Combined proficiency", b.combined, "%", real)}
       ${row("State percentile", b.statePercentile, "", real)}
+      ${(() => { const a = s.acct || {}; const rr = `<span class="tag-real">real</span>`; let h = "";
+        if (a.elaDFS != null) h += `<div class="bd-row"><div class="bd-l">ELA — Distance from Standard (Dashboard ${a.year || ""}) ${rr}</div><div class="bd-v">${a.elaDFS >= 0 ? "+" : ""}${a.elaDFS}</div></div>`;
+        if (a.mathDFS != null) h += `<div class="bd-row"><div class="bd-l">Math — Distance from Standard (Dashboard ${a.year || ""}) ${rr}</div><div class="bd-v">${a.mathDFS >= 0 ? "+" : ""}${a.mathDFS}</div></div>`;
+        return h; })()}
       ${(() => { const a = s.acct || {}; const rr = `<span class="tag-real">real</span>`;
         const prog = (a.acadProg != null)
           ? `<div class="bd-row"><div class="bd-l">Academic progress (Dashboard DFS change) ${rr}</div><div class="bd-v">${a.acadProg >= 0 ? "+" : ""}${a.acadProg} pts</div></div>`
@@ -259,7 +263,7 @@ function openDetail(id) {
       <div class="kpi"><div class="lbl">Low-income ${isReal ? '<span class="tag-modeled">not wired</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? "N/A" : s.sub.lowIncomePct + "%"}</div></div>
     </div>
     <p style="font-size:12px;color:#64748b;margin:4px 0 0">
-      ${isReal ? 'REAL: rating, decade history, ELA/Math %, state percentile (CAASPP) + enrollment; academic progress, attendance, graduation, college/career (CA Dashboard 2024). Only <b>equity</b>, <b>student:teacher</b> and <b>low‑income</b> remain <span class="tag-modeled">not wired</span> (shown as N/A) — see README.' : 'This school had no CAASPP match, so values are modeled placeholders.'}
+      ${isReal ? 'REAL: rating, decade history, ELA/Math %, state percentile (CAASPP) + enrollment; ELA/Math Distance‑from‑Standard, academic progress, attendance, graduation, college/career (CA Dashboard 2025). Only <b>equity</b>, <b>student:teacher</b> and <b>low‑income</b> remain <span class="tag-modeled">not wired</span> (shown as N/A) — see README.' : 'This school had no CAASPP match, so values are modeled placeholders.'}
     </p>
 
     <h3>Insights</h3>

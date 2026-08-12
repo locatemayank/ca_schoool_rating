@@ -26,7 +26,7 @@ import csv, os, sys, json
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "data", "accountability.js")
-YEAR = sys.argv[1] if len(sys.argv) > 1 else "2024"
+YEAR = sys.argv[1] if len(sys.argv) > 1 else "2025"
 SRC = "/tmp"
 
 C_CDS, C_RTYPE, C_GROUP, C_STATUS, C_CHANGE = 0, 1, 8, 11, 15
@@ -42,10 +42,16 @@ def num(x):
         return None
 
 
-def read_metric(fname, want="status"):
-    """Return {cds: value} for school/ALL rows (currstatus or change)."""
+def read_metric(fname, want="status", cstat=C_STATUS, cchg=C_CHANGE):
+    """Return {cds: value} for school/ALL rows (currstatus or change).
+
+    Column positions differ by file:
+      grad/chronic/cci : currstatus=11, change=15 (0-based)
+      ela/math         : currstatus=10, change=13 (0-based)  [no currnumer col]
+    """
     path = os.path.join(SRC, fname)
     out = {}
+    need = cstat if want == "status" else cchg
     if not os.path.exists(path):
         print(f"  (missing {fname})")
         return out
@@ -53,12 +59,12 @@ def read_metric(fname, want="status"):
         r = csv.reader(f, delimiter="\t")
         next(r, None)
         for row in r:
-            if len(row) <= C_CHANGE:
+            if len(row) <= max(cstat, cchg, C_GROUP):
                 continue
             if row[C_RTYPE] != "S" or row[C_GROUP] != "ALL":
                 continue
             cds = row[C_CDS].strip().zfill(14)
-            v = num(row[C_STATUS] if want == "status" else row[C_CHANGE])
+            v = num(row[need])
             if v is not None:
                 out[cds] = v
     return out
@@ -68,10 +74,14 @@ def main():
     grad = read_metric(f"graddownload{YEAR}.txt", "status")
     chronic = read_metric(f"chronicdownload{YEAR}.txt", "status")
     cci = read_metric(f"ccidownload{YEAR}.txt", "status")
-    ela_ch = read_metric(f"eladownload{YEAR}.txt", "change")
-    math_ch = read_metric(f"mathdownload{YEAR}.txt", "change")
+    # ELA/Math academic files use currstatus=10, change=13 (0-based).
+    ela_ch = read_metric(f"eladownload{YEAR}.txt", "change", 10, 13)
+    math_ch = read_metric(f"mathdownload{YEAR}.txt", "change", 10, 13)
+    ela_st = read_metric(f"eladownload{YEAR}.txt", "status", 10, 13)  # DFS (current)
+    math_st = read_metric(f"mathdownload{YEAR}.txt", "status", 10, 13)
 
-    cds_all = set(grad) | set(chronic) | set(cci) | set(ela_ch) | set(math_ch)
+    cds_all = (set(grad) | set(chronic) | set(cci) | set(ela_ch) | set(math_ch)
+               | set(ela_st) | set(math_st))
     out = {}
     for cds in cds_all:
         rec = {"year": int(YEAR)}
@@ -86,6 +96,10 @@ def main():
         vals = [x for x in (e, m) if x is not None]
         if vals:
             rec["acadProg"] = round(sum(vals) / len(vals), 1)  # DFS points change
+        if cds in ela_st:
+            rec["elaDFS"] = round(ela_st[cds], 1)   # ELA Distance from Standard (pts)
+        if cds in math_st:
+            rec["mathDFS"] = round(math_st[cds], 1)
         out[cds] = rec
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
