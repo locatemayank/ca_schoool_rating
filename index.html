@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CA School Finder — Ratings, History & Insights</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+<header class="app-header">
+  <div class="brand">
+    <span class="logo">🎓</span>
+    <div>
+      <h1>California School Finder</h1>
+      <p class="tagline">Assigned &amp; nearby public schools, decade rating trends, and buyer insights</p>
+    </div>
+  </div>
+</header>
+
+<section class="search-bar">
+  <div class="search-row">
+    <input id="addressInput" type="text"
+           placeholder="Enter a California address (e.g. 1600 Amphitheatre Pkwy, Mountain View, CA)"
+           value="1224 Rosebriar Way, San Jose, CA 95131" />
+    <button id="searchBtn">🔍 Find Schools</button>
+  </div>
+  <div class="search-hint" id="statusLine">Enter a CA address and press <b>Find Schools</b>.</div>
+</section>
+
+<main id="results" class="results hidden">
+  <section class="loc-summary card">
+    <h2 id="locTitle">Location</h2>
+    <div id="locMeta" class="loc-meta"></div>
+    <div id="map"></div>
+  </section>
+
+  <section class="assigned-block">
+    <h2 class="section-title">🏠 Assigned Schools <span class="badge mixed">district-aware nearest</span></h2>
+    <div id="assignNote" class="assign-note"></div>
+    <div id="assignedCards" class="school-grid"></div>
+  </section>
+
+  <section class="nearby-block">
+    <h2 class="section-title">📍 Other Nearby Schools</h2>
+    <div class="nearby-controls">
+      <label>Show:
+        <select id="nearbyLevel">
+          <option value="all">All levels</option>
+          <option value="Elementary">Elementary</option>
+          <option value="Middle">Middle</option>
+          <option value="High">High</option>
+        </select>
+      </label>
+      <label>Sort by:
+        <select id="nearbySort">
+          <option value="rating">Rating (high→low)</option>
+          <option value="distance">Distance (near→far)</option>
+          <option value="trend">Best trend</option>
+        </select>
+      </label>
+    </div>
+    <div id="nearbyCards" class="school-grid"></div>
+  </section>
+
+  <section class="method-card card">
+    <h2 class="section-title" style="margin-top:0">📊 How the 0–10 rating is calculated
+      <span class="badge real">real CAASPP</span></h2>
+    <p class="method-lead">The <b>0–10 rating</b> and the <b>decade history</b> are
+      REAL, computed from California's official statewide tests (<b>CAASPP</b>
+      Smarter Balanced) — the same test‑score signal GreatSchools uses — turned
+      into a 1–10 statewide rank:</p>
+    <ol class="method-steps">
+      <li><b>Proficiency %</b> = share of students who <b>Met or Exceeded</b> the
+        standard, using <b>ELA + Math</b> (all grades, all students). ELA and Math
+        are combined weighted by the number tested:
+        <code>prof = (ELA%·ELAtested + Math%·Mathtested) / (ELAtested + Mathtested)</code>.</li>
+      <li><b>Statewide decile (1–10)</b> = rank this school's proficiency against
+        <b>every CA school that year</b>:
+        <code>rating = ceil(percentile_rank × 10)</code>, clamped to 1–10.
+        (So 10 = top ~10% in the state, 5 ≈ median.)</li>
+      <li><b>Decade history &amp; trend</b> = the same decile computed for each
+        available year (<b>2015–2019, 2022–2024</b>; 2020–21 had no testing); the
+        line's least‑squares slope gives Improving / Stable / Declining.</li>
+    </ol>
+    <p class="method-real">Also <b>REAL</b> from these files: <b>enrollment</b> and
+      the <b>“% Met/Above (CAASPP)”</b> figure in each detail panel.</p>
+    <p class="method-modeled"><b>Modeled (placeholder) fields</b> — <i>not</i> from a
+      data feed yet, shown for layout and clearly badged: <b>Academic progress,
+      Equity, College ready, Students:teacher ratio, Low‑income %, Graduation
+      rate</b>. These are deterministic estimates seeded by the school id; join
+      <b>CA DOE DataQuest</b> (grad / A‑G / AP) and the CAASPP growth model to make
+      them real.</p>
+    <p class="method-why"><b>Why it can differ from GreatSchools:</b> GreatSchools'
+      overall number is a <b>weighted blend</b> of several ratings — test scores
+      <i>plus</i> <b>academic growth</b>, <b>graduation / college‑readiness</b>
+      (A‑G, AP/IB, SAT/ACT) and an <b>equity</b> component — with grade‑level
+      weights that are periodically re‑calibrated. This app currently uses the
+      <b>test‑score component only</b>, so a school can land about <b>one point
+      above or below</b> the GreatSchools composite (e.g. Vinci Park ≈ 60%
+      proficient → our decile 9 vs GreatSchools 8).</p>
+  </section>
+</main>
+
+<!-- School detail modal -->
+<div id="detailOverlay" class="overlay hidden">
+  <div class="detail-panel">
+    <button id="detailClose" class="close-btn">✕</button>
+    <div id="detailBody"></div>
+  </div>
+</div>
+
+<footer class="app-footer">
+  <p>School <b>names, locations, districts and grade spans are REAL</b> (CA Dept.
+     of Education directory). <b>Assignment</b> is a district-aware nearest-school
+     approximation of official attendance boundaries. <b>Ratings &amp; history are
+     modeled</b> deterministic estimates (badged in-app). Geocoding tries the US
+     Census Geocoder, then falls back to a built-in ZIP/city centroid table so it
+     works on locked networks. See <code>README.md</code> to connect real feeds.</p>
+</footer>
+
+<script src="data/zips.js"></script>
+<script src="data/schools.js"></script>
+<script src="data/ratings.js"></script>
+<script src="js/data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.pyc
+
+# Large raw source files (regenerate via scripts; NOT needed at runtime)
+scripts/pubschls.txt
+scripts/sb_ca*_all_csv_*.txt
+data/*.zip
+
+# OS/editor
+.DS_Store
