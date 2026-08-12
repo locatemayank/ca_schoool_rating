@@ -176,12 +176,19 @@ function scoreBreakdown(s) {
       ${row("Math proficiency (% met/above)", b.math, "%", real)}
       ${row("Combined proficiency", b.combined, "%", real)}
       ${row("State percentile", b.statePercentile, "", real)}
-      <div class="bd-row"><div class="bd-l">Academic growth (proficiency change) ${derived}</div>
-        <div class="bd-v">${growthTxt}</div></div>
-      <div class="bd-row"><div class="bd-l">College readiness (A‑G / AP) ${na}</div>
-        <div class="bd-v">N/A</div></div>
-      <div class="bd-row"><div class="bd-l">Attendance ${na}</div>
-        <div class="bd-v">N/A</div></div>
+      ${(() => { const a = s.acct || {}; const rr = `<span class="tag-real">real</span>`;
+        const prog = (a.acadProg != null)
+          ? `<div class="bd-row"><div class="bd-l">Academic progress (Dashboard DFS change) ${rr}</div><div class="bd-v">${a.acadProg >= 0 ? "+" : ""}${a.acadProg} pts</div></div>`
+          : `<div class="bd-row"><div class="bd-l">Academic growth (CAASPP proficiency change) ${derived}</div><div class="bd-v">${growthTxt}</div></div>`;
+        const att = (a.attend != null)
+          ? `<div class="bd-row"><div class="bd-l">Attendance (100−chronic) ${rr}</div><div class="bd-v">${a.attend}%</div>${bar(a.attend)}</div>`
+          : `<div class="bd-row"><div class="bd-l">Attendance ${na}</div><div class="bd-v">N/A</div></div>`;
+        const col = (a.college != null)
+          ? `<div class="bd-row"><div class="bd-l">College/Career prepared ${rr}</div><div class="bd-v">${a.college}%</div>${bar(a.college)}</div>`
+          : `<div class="bd-row"><div class="bd-l">College/Career prepared ${na}</div><div class="bd-v">N/A</div></div>`;
+        const grad = (a.grad != null)
+          ? `<div class="bd-row"><div class="bd-l">Graduation (4‑yr cohort) ${rr}</div><div class="bd-v">${a.grad}%</div>${bar(a.grad)}</div>` : "";
+        return prog + att + col + grad; })()}
     </div>`;
 }
 
@@ -242,17 +249,17 @@ function openDetail(id) {
 
     <div class="kpi-row">
       <div class="kpi"><div class="lbl">Enrollment ${isReal ? '<span class="tag-real">real</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${s.sub.enrollment.toLocaleString()}</div></div>
-      <div class="kpi"><div class="lbl">Academic progress ${isReal ? '<span class="tag-real">real·derived</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? (s.breakdown && s.breakdown.profGrowth != null ? ((s.breakdown.profGrowth >= 0 ? "+" : "") + s.breakdown.profGrowth + " pts") : "N/A") : (s.sub.academicProgress + " /100")}</div></div>
-      <div class="kpi"><div class="lbl">Graduation ${isReal ? '<span class="tag-modeled">not wired</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? "N/A" : s.sub.graduationPct + "%"}</div></div>
+      <div class="kpi"><div class="lbl">Academic progress ${isReal ? '<span class="tag-real">real</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? ((s.acct && s.acct.acadProg != null) ? ((s.acct.acadProg >= 0 ? "+" : "") + s.acct.acadProg + " pts") : (s.breakdown && s.breakdown.profGrowth != null ? ((s.breakdown.profGrowth >= 0 ? "+" : "") + s.breakdown.profGrowth + " pts") : "N/A")) : (s.sub.academicProgress + " /100")}</div></div>
+      <div class="kpi"><div class="lbl">Graduation ${isReal ? ((s.acct && s.acct.grad != null) ? '<span class="tag-real">real</span>' : '<span class="tag-modeled">not wired</span>') : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? ((s.acct && s.acct.grad != null) ? s.acct.grad + "%" : "N/A") : s.sub.graduationPct + "%"}</div></div>
     </div>
     <div class="kpi-row">
       <div class="kpi"><div class="lbl">Equity ${isReal ? '<span class="tag-modeled">not wired</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? "N/A" : s.sub.equity + " /100"}</div></div>
-      <div class="kpi"><div class="lbl">College ready ${isReal ? '<span class="tag-modeled">not wired</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? "N/A" : s.sub.collegeReadiness + " /100"}</div></div>
+      <div class="kpi"><div class="lbl">College ready ${isReal ? ((s.acct && s.acct.college != null) ? '<span class="tag-real">real</span>' : '<span class="tag-modeled">not wired</span>') : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? ((s.acct && s.acct.college != null) ? s.acct.college + "%" : "N/A") : s.sub.collegeReadiness + " /100"}</div></div>
       <div class="kpi"><div class="lbl">Students / teacher ${isReal ? '<span class="tag-modeled">not wired</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? "N/A" : s.sub.studentTeacherRatio + ":1"}</div></div>
       <div class="kpi"><div class="lbl">Low-income ${isReal ? '<span class="tag-modeled">not wired</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${isReal ? "N/A" : s.sub.lowIncomePct + "%"}</div></div>
     </div>
     <p style="font-size:12px;color:#64748b;margin:4px 0 0">
-      ${isReal ? 'REAL from CAASPP/CA DOE: rating, decade history, ELA/Math %, state percentile, academic progress (proficiency change), enrollment. Items marked <span class="tag-modeled">not wired</span> are shown as N/A (not simulated) until the matching CDE feed is connected — see README.' : 'This school had no CAASPP match, so values are modeled placeholders.'}
+      ${isReal ? 'REAL: rating, decade history, ELA/Math %, state percentile (CAASPP) + enrollment; academic progress, attendance, graduation, college/career (CA Dashboard 2024). Only <b>equity</b>, <b>student:teacher</b> and <b>low‑income</b> remain <span class="tag-modeled">not wired</span> (shown as N/A) — see README.' : 'This school had no CAASPP match, so values are modeled placeholders.'}
     </p>
 
     <h3>Insights</h3>

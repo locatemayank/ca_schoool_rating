@@ -126,6 +126,7 @@ function enrich(base, distanceMi) {
         statePercentile: statePct,
         profGrowth, growthYears,
       },
+      acct: (window.SCHOOL_ACCT || {})[base.id] || null, // REAL CA Dashboard
       ratingProvenance: "real",           // CAASPP decile
       dataYears: years,
       provenance: "real-location-real-caaspp-rating",
