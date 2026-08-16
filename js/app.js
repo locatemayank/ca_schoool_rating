@@ -119,7 +119,7 @@ function historyChart(hist, fc) {
     band = `<polygon points="${top.concat(bot).join(" ")}" fill="${col}18"/>`;
   }
   return `<svg class="hist-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
-    <rect x="0" y="0" width="${w}" height="${h}" fill="#ffffff"/>
+    <rect class="cbg" x="0" y="0" width="${w}" height="${h}" fill="#ffffff"/>
     ${grid}${xlabels}
     <polygon points="${area}" fill="${col}22"/>
     ${band}
@@ -260,7 +260,7 @@ function metricChart(pairs, opts) {
   const line = pairs.map((p, i) => `${X(i).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ");
   const dots = pairs.map((p, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="3" fill="${col}"/>`).join("");
   return `<svg class="hist-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" style="height:180px">
-    <rect x="0" y="0" width="${w}" height="${h}" fill="#ffffff"/>
+    <rect class="cbg" x="0" y="0" width="${w}" height="${h}" fill="#ffffff"/>
     ${grid}${xl}
     <polyline fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" points="${line}"/>
     ${dots}

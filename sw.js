@@ -4,7 +4,7 @@
  *  - other same-origin (data/*, icons/*) -> CACHE-FIRST (fast, offline)
  *  - cross-origin (geocoders) -> pass through
  */
-const CACHE = "casf-v5";
+const CACHE = "casf-v6";
 const ASSETS = [
   "./",
   "index.html",
