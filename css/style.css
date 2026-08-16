@@ -41,8 +41,15 @@ body {
 }
 .app-header h1 {
   margin: 0; font-size: 30px; font-weight: 800; letter-spacing: -0.5px;
-  background: linear-gradient(90deg,#ffffff,#dbeafe); -webkit-background-clip: text;
-  background-clip: text; color: transparent;
+  color: #ffffff;                     /* solid fallback so it's never invisible */
+}
+/* Gradient text only where clip-to-text is actually supported */
+@supports ((-webkit-background-clip: text) or (background-clip: text)) {
+  .app-header h1 {
+    background: linear-gradient(90deg,#ffffff,#dbeafe);
+    -webkit-background-clip: text; background-clip: text;
+    -webkit-text-fill-color: transparent; color: transparent;
+  }
 }
 .tagline { margin: 4px 0 0; color: #dbeafe; font-size: 15px; max-width: 640px; }
 .hero-badges { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 0; }
