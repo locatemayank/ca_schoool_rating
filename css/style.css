@@ -326,8 +326,13 @@ body {
   /* Charts a touch shorter to fit the viewport */
   .hist-chart { height: 190px; }
 
-  /* Detail modal edge-to-edge with safe-area padding */
-  .overlay { padding: 14px 10px calc(14px + env(safe-area-inset-bottom)); align-items: stretch; }
+  /* Detail modal edge-to-edge with safe-area padding.
+     IMPORTANT: keep align-items:flex-start so the panel grows to its content
+     height (its white/dark background then covers everything). Using
+     align-items:stretch fixed the panel to the viewport height, so tall content
+     overflowed below the painted panel and showed the translucent backdrop
+     through — the "transparent gaps" reported on phones. */
+  .overlay { padding: 14px 10px calc(14px + env(safe-area-inset-bottom)); align-items: flex-start; }
   .detail-panel { padding: 18px 16px; border-radius: 16px; }
   .detail-head { gap: 12px; }
   .detail-panel h2 { font-size: 20px; }
