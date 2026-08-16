@@ -1,35 +1,43 @@
 #!/usr/bin/env python3
 """
-build_accountability.py — REAL CA School Dashboard indicators per school.
+build_accountability.py — REAL CA School Dashboard indicators per school,
+with MULTI-YEAR ELA/Math Distance-from-Standard (DFS) and academic-progress
+series for plotting.
 
-Parses the CA Dashboard research files (tab-delimited, shared schema) and
-extracts the school-level ("rtype"=="S"), All-students ("studentgroup"=="ALL")
-current values, producing REAL:
+Sources (tab-delimited; download into /tmp from
+https://www3.cde.ca.gov/researchfiles/cadashboard/):
+  eladownload<Y>.txt, mathdownload<Y>.txt   (academic; currstatus=DFS, change)
+  graddownload<Y>.txt, chronicdownload<Y>.txt, ccidownload<Y>.txt (current year)
 
-  - graduation %          from graddownload<year>.txt   (currstatus)
-  - chronic absenteeism % from chronicdownload<year>.txt (currstatus)
-  - attendance %          = 100 - chronic
-  - college/career %      from ccidownload<year>.txt     (currstatus, % Prepared)
-  - academic progress     = mean of ELA & Math DFS "change"
-                            from eladownload/mathdownload (change; points)
+Dashboard academic years available: 2018, 2019, 2022, 2023, 2024, 2025
+(2017 not published as a downloadable academic file; 2020-21 suspended).
 
-Shared columns (0-based): cds=0, rtype=1, studentgroup=8, currstatus=11, change=15.
+Column positions differ by file (0-based):
+  grad/chronic/cci : rtype=1, studentgroup=8, currstatus=11, change=15
+  ela/math         : rtype=1, studentgroup=8, currstatus=10, change=13  (no currnumer)
 
-Input : /tmp/{grad,chronic,cci,ela,math}download<year>.txt  (download from
-        https://www3.cde.ca.gov/researchfiles/cadashboard/)
 Output: ../data/accountability.js -> window.SCHOOL_ACCT = {
-          "<CDS>": { grad, chronic, attend, college, acadProg, year }
-        }
+  "<CDS>": {
+     year, grad, chronic, attend, college,           # current-year scalars
+     elaDFS, mathDFS, acadProg, ratingYear,          # current-year academic
+     elaHist:  {year: dfs}, mathHist: {year: dfs},   # multi-year series
+     progHist: {year: meanChange}                    # multi-year academic progress
+  }, ...
+}
 """
 
-import csv, math, os, sys, json
+import csv, glob, math, os, sys, json
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, "..", "data", "accountability.js")
-YEAR = sys.argv[1] if len(sys.argv) > 1 else "2025"
 SRC = "/tmp"
+CUR = sys.argv[1] if len(sys.argv) > 1 else "2025"
 
-C_CDS, C_RTYPE, C_GROUP, C_STATUS, C_CHANGE = 0, 1, 8, 11, 15
+C_CDS, C_RTYPE, C_GROUP = 0, 1, 8
+# grad/chronic/cci columns
+G_STATUS, G_CHANGE = 11, 15
+# ela/math columns
+A_STATUS, A_CHANGE = 10, 13
 
 
 def num(x):
@@ -42,18 +50,10 @@ def num(x):
         return None
 
 
-def read_metric(fname, want="status", cstat=C_STATUS, cchg=C_CHANGE):
-    """Return {cds: value} for school/ALL rows (currstatus or change).
-
-    Column positions differ by file:
-      grad/chronic/cci : currstatus=11, change=15 (0-based)
-      ela/math         : currstatus=10, change=13 (0-based)  [no currnumer col]
-    """
-    path = os.path.join(SRC, fname)
+def read_metric(path, want, cstat, cchg):
     out = {}
     need = cstat if want == "status" else cchg
     if not os.path.exists(path):
-        print(f"  (missing {fname})")
         return out
     with open(path, encoding="latin-1", newline="") as f:
         r = csv.reader(f, delimiter="\t")
@@ -63,43 +63,70 @@ def read_metric(fname, want="status", cstat=C_STATUS, cchg=C_CHANGE):
                 continue
             if row[C_RTYPE] != "S" or row[C_GROUP] != "ALL":
                 continue
-            cds = row[C_CDS].strip().zfill(14)
             v = num(row[need])
             if v is not None:
-                out[cds] = v
+                out[row[C_CDS].strip().zfill(14)] = v
+    return out
+
+
+def academic_years():
+    ys = []
+    for p in glob.glob(os.path.join(SRC, "eladownload20*.txt")):
+        base = os.path.basename(p)
+        y = base.replace("eladownload", "").replace(".txt", "")
+        if y.isdigit() and os.path.exists(os.path.join(SRC, f"mathdownload{y}.txt")):
+            ys.append(int(y))
+    return sorted(ys)
+
+
+def decile_from(combined):
+    ranked = sorted(combined.items(), key=lambda kv: kv[1])
+    n = len(ranked)
+    out = {}
+    for i, (cds, _v) in enumerate(ranked):
+        pr = (i + 0.5) / n if n else 0
+        out[cds] = max(1, min(10, int(math.ceil(pr * 10))))
     return out
 
 
 def main():
-    grad = read_metric(f"graddownload{YEAR}.txt", "status")
-    chronic = read_metric(f"chronicdownload{YEAR}.txt", "status")
-    cci = read_metric(f"ccidownload{YEAR}.txt", "status")
-    # ELA/Math academic files use currstatus=10, change=13 (0-based).
-    ela_ch = read_metric(f"eladownload{YEAR}.txt", "change", 10, 13)
-    math_ch = read_metric(f"mathdownload{YEAR}.txt", "change", 10, 13)
-    ela_st = read_metric(f"eladownload{YEAR}.txt", "status", 10, 13)  # DFS (current)
-    math_st = read_metric(f"mathdownload{YEAR}.txt", "status", 10, 13)
+    years = academic_years()
+    if not years:
+        sys.exit("No eladownload/mathdownload files found in /tmp")
+    cur = int(CUR) if CUR.isdigit() and int(CUR) in years else years[-1]
 
-    cds_all = (set(grad) | set(chronic) | set(cci) | set(ela_ch) | set(math_ch)
-               | set(ela_st) | set(math_st))
+    # Per-year academic reads.
+    ela_st, math_st, ela_ch, math_ch = {}, {}, {}, {}
+    for y in years:
+        ela = os.path.join(SRC, f"eladownload{y}.txt")
+        mth = os.path.join(SRC, f"mathdownload{y}.txt")
+        ela_st[y] = read_metric(ela, "status", A_STATUS, A_CHANGE)
+        math_st[y] = read_metric(mth, "status", A_STATUS, A_CHANGE)
+        ela_ch[y] = read_metric(ela, "change", A_STATUS, A_CHANGE)
+        math_ch[y] = read_metric(mth, "change", A_STATUS, A_CHANGE)
+        print(f"  {y}: elaDFS={len(ela_st[y])} mathDFS={len(math_st[y])}")
 
-    # REAL year-YEAR decile (1-10): statewide percentile rank of the combined
-    # ELA+Math Distance-from-Standard (mean of the two current DFS values).
-    combined = {}
-    for cds in (set(ela_st) & set(math_st)):
-        combined[cds] = (ela_st[cds] + math_st[cds]) / 2.0
-    for cds in (set(ela_st) ^ set(math_st)):  # only one subject present
-        combined[cds] = ela_st.get(cds, math_st.get(cds))
-    ranked = sorted(combined.items(), key=lambda kv: kv[1])
-    n = len(ranked)
-    decile_year = {}
-    for i, (cds, _v) in enumerate(ranked):
-        pr = (i + 0.5) / n if n else 0
-        decile_year[cds] = max(1, min(10, int(math.ceil(pr * 10))))
+    # Current-year scalars from grad/chronic/cci.
+    grad = read_metric(os.path.join(SRC, f"graddownload{cur}.txt"), "status", G_STATUS, G_CHANGE)
+    chronic = read_metric(os.path.join(SRC, f"chronicdownload{cur}.txt"), "status", G_STATUS, G_CHANGE)
+    cci = read_metric(os.path.join(SRC, f"ccidownload{cur}.txt"), "status", G_STATUS, G_CHANGE)
+
+    # Current-year statewide DFS decile.
+    combined_cur = {}
+    for cds in (set(ela_st[cur]) | set(math_st[cur])):
+        e, m = ela_st[cur].get(cds), math_st[cur].get(cds)
+        vals = [x for x in (e, m) if x is not None]
+        if vals:
+            combined_cur[cds] = sum(vals) / len(vals)
+    decile_cur = decile_from(combined_cur)
+
+    all_cds = set(grad) | set(chronic) | set(cci)
+    for y in years:
+        all_cds |= set(ela_st[y]) | set(math_st[y])
 
     out = {}
-    for cds in cds_all:
-        rec = {"year": int(YEAR)}
+    for cds in all_cds:
+        rec = {"year": cur}
         if cds in grad:
             rec["grad"] = round(grad[cds], 1)
         if cds in chronic:
@@ -107,29 +134,45 @@ def main():
             rec["attend"] = round(100 - chronic[cds], 1)
         if cds in cci:
             rec["college"] = round(cci[cds], 1)
-        e, m = ela_ch.get(cds), math_ch.get(cds)
-        vals = [x for x in (e, m) if x is not None]
-        if vals:
-            rec["acadProg"] = round(sum(vals) / len(vals), 1)  # DFS points change
-        if cds in ela_st:
-            rec["elaDFS"] = round(ela_st[cds], 1)   # ELA Distance from Standard (pts)
-        if cds in math_st:
-            rec["mathDFS"] = round(math_st[cds], 1)
-        if cds in decile_year:
-            rec["ratingYear"] = decile_year[cds]   # 1-10 statewide DFS decile (YEAR)
+        # current academic scalars
+        if cds in ela_st[cur]:
+            rec["elaDFS"] = round(ela_st[cur][cds], 1)
+        if cds in math_st[cur]:
+            rec["mathDFS"] = round(math_st[cur][cds], 1)
+        e, m = ela_ch[cur].get(cds), math_ch[cur].get(cds)
+        vv = [x for x in (e, m) if x is not None]
+        if vv:
+            rec["acadProg"] = round(sum(vv) / len(vv), 1)
+        if cds in decile_cur:
+            rec["ratingYear"] = decile_cur[cds]
+        # multi-year series
+        eh, mh, ph = {}, {}, {}
+        for y in years:
+            if cds in ela_st[y]:
+                eh[str(y)] = round(ela_st[y][cds], 1)
+            if cds in math_st[y]:
+                mh[str(y)] = round(math_st[y][cds], 1)
+            ce, cm = ela_ch[y].get(cds), math_ch[y].get(cds)
+            cv = [x for x in (ce, cm) if x is not None]
+            if cv:
+                ph[str(y)] = round(sum(cv) / len(cv), 1)
+        if eh:
+            rec["elaHist"] = eh
+        if mh:
+            rec["mathHist"] = mh
+        if ph:
+            rec["progHist"] = ph
         out[cds] = rec
 
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
     with open(OUT, "w") as f:
-        f.write("/* AUTO-GENERATED by scripts/build_accountability.py — REAL CA Dashboard "
-                f"{YEAR}.\n   grad/chronic/attend/college in %, acadProg = mean ELA+Math "
-                "DFS change (points). */\n")
+        f.write("/* AUTO-GENERATED by scripts/build_accountability.py — REAL CA Dashboard.\n")
+        f.write(f"   current year={cur}; academic years={years}.\n")
+        f.write("   *DFS = Distance from Standard (points); progHist = mean ELA+Math change. */\n")
         f.write("window.SCHOOL_ACCT = ")
         json.dump(out, f, separators=(",", ":"))
         f.write(";\n")
-    print(f"grad={len(grad)} chronic={len(chronic)} cci={len(cci)} "
-          f"ela_ch={len(ela_ch)} math_ch={len(math_ch)} -> {len(out)} schools")
-    print("Wrote", OUT)
+    print(f"years={years} current={cur} -> {len(out)} schools -> {OUT}")
 
 
 if __name__ == "__main__":

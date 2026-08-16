@@ -99,10 +99,10 @@ function schoolCard(s) {
       </div>
     </div>
     <div class="sc-metrics">
-      ${s.breakdown ? `
+      ${s.acct ? `
         <div class="metric">Enrollment<b>${s.sub.enrollment.toLocaleString()}</b></div>
-        <div class="metric">ELA %<b>${s.breakdown.ela == null ? "—" : s.breakdown.ela + "%"}</b></div>
-        <div class="metric">Math %<b>${s.breakdown.math == null ? "—" : s.breakdown.math + "%"}</b></div>
+        <div class="metric">ELA DFS (${s.acct.year})<b>${s.acct.elaDFS == null ? "—" : (s.acct.elaDFS >= 0 ? "+" : "") + s.acct.elaDFS}</b></div>
+        <div class="metric">Math DFS (${s.acct.year})<b>${s.acct.mathDFS == null ? "—" : (s.acct.mathDFS >= 0 ? "+" : "") + s.acct.mathDFS}</b></div>
       ` : `
         <div class="metric">Enrollment<b>${s.sub.enrollment.toLocaleString()}</b></div>
         <div class="metric">Students/Teacher<b>${s.sub.studentTeacherRatio}:1</b></div>
@@ -133,12 +133,12 @@ function insights(s) {
   out.push(["neu", `Peak rating <b>${peak.rating}</b> in ${peak.year}; lowest <b>${low.rating}</b> in ${low.year}.`]);
 
   const real = s.ratingProvenance === "real";
-  if (real && s.breakdown) {
-    const g = s.breakdown.profGrowth;
-    if (g != null) out.push([g >= 0 ? "pos" : "neg",
-      `Academic progress (CAASPP proficiency change): <b>${g >= 0 ? "+" : ""}${g} pts</b> over ${s.breakdown.growthYears}.`]);
+  if (real && s.acct) {
+    const a = s.acct;
+    if (a.acadProg != null) out.push([a.acadProg >= 0 ? "pos" : "neg",
+      `Academic progress ${a.year}: <b>${a.acadProg >= 0 ? "+" : ""}${a.acadProg} pts</b> (mean ELA+Math change).`]);
     out.push(["neu",
-      `Latest CAASPP: ELA <b>${s.breakdown.ela == null ? "n/a" : s.breakdown.ela + "%"}</b>, Math <b>${s.breakdown.math == null ? "n/a" : s.breakdown.math + "%"}</b>, state percentile <b>${s.breakdown.statePercentile == null ? "n/a" : s.breakdown.statePercentile}</b>.`]);
+      `${a.year} Distance‑from‑Standard: ELA <b>${a.elaDFS == null ? "n/a" : (a.elaDFS >= 0 ? "+" : "") + a.elaDFS}</b>, Math <b>${a.mathDFS == null ? "n/a" : (a.mathDFS >= 0 ? "+" : "") + a.mathDFS}</b>.`]);
   } else {
     if (s.sub.studentTeacherRatio <= 20) out.push(["pos", `Favorable student:teacher ratio of <b>${s.sub.studentTeacherRatio}:1</b>.`]);
     else if (s.sub.studentTeacherRatio >= 26) out.push(["neg", `High student:teacher ratio of <b>${s.sub.studentTeacherRatio}:1</b> — larger classes.`]);
@@ -149,51 +149,83 @@ function insights(s) {
   return out;
 }
 
-/* ---------- real score breakdown (CAASPP) ---------- */
+/* ---------- real score breakdown (current year only, CA Dashboard) ---------- */
 function scoreBreakdown(s) {
-  const b = s.breakdown;
-  if (!b) return "";
+  const a = s.acct;
+  if (!a) return "";
   const clamp = (v) => Math.max(0, Math.min(100, v));
   const bar = (v) => (v == null ? "" :
     `<div class="bd-bar"><span style="width:${clamp(v)}%"></span></div>`);
-  const row = (label, val, suffix, tag) =>
-    `<div class="bd-row">
-       <div class="bd-l">${label} ${tag}</div>
-       <div class="bd-v">${val == null ? "N/A" : val + (suffix || "")}</div>
-       ${val == null ? "" : bar(val)}
-     </div>`;
   const real = `<span class="tag-real">real</span>`;
-  const derived = `<span class="tag-real">real·derived</span>`;
   const na = `<span class="tag-modeled">not wired</span>`;
-  const g = b.profGrowth;
-  const growthTxt = g == null ? "N/A"
-    : `${g >= 0 ? "+" : ""}${g} pts (${b.growthYears})`;
+  const pct = (label, v) => (v == null
+    ? `<div class="bd-row"><div class="bd-l">${label} ${na}</div><div class="bd-v">N/A</div></div>`
+    : `<div class="bd-row"><div class="bd-l">${label} ${real}</div><div class="bd-v">${v}%</div>${bar(v)}</div>`);
+  const pts = (label, v) => (v == null ? ""
+    : `<div class="bd-row"><div class="bd-l">${label} ${real}</div><div class="bd-v">${v >= 0 ? "+" : ""}${v}</div></div>`);
   return `
-    <h3 style="margin-top:6px">Score breakdown — ${b.latestYear}
-      <span class="badge real">CAASPP</span></h3>
+    <h3 style="margin-top:6px">Score breakdown — ${a.year}
+      <span class="badge real">CA Dashboard</span></h3>
     <div class="bd">
-      ${row("ELA proficiency (% met/above)", b.ela, "%", real)}
-      ${row("Math proficiency (% met/above)", b.math, "%", real)}
-      ${row("Combined proficiency", b.combined, "%", real)}
-      ${row("State percentile", b.statePercentile, "", real)}
-      ${(() => { const a = s.acct || {}; const rr = `<span class="tag-real">real</span>`; let h = "";
-        if (a.elaDFS != null) h += `<div class="bd-row"><div class="bd-l">ELA — Distance from Standard (Dashboard ${a.year || ""}) ${rr}</div><div class="bd-v">${a.elaDFS >= 0 ? "+" : ""}${a.elaDFS}</div></div>`;
-        if (a.mathDFS != null) h += `<div class="bd-row"><div class="bd-l">Math — Distance from Standard (Dashboard ${a.year || ""}) ${rr}</div><div class="bd-v">${a.mathDFS >= 0 ? "+" : ""}${a.mathDFS}</div></div>`;
-        return h; })()}
-      ${(() => { const a = s.acct || {}; const rr = `<span class="tag-real">real</span>`;
-        const prog = (a.acadProg != null)
-          ? `<div class="bd-row"><div class="bd-l">Academic progress (Dashboard DFS change) ${rr}</div><div class="bd-v">${a.acadProg >= 0 ? "+" : ""}${a.acadProg} pts</div></div>`
-          : `<div class="bd-row"><div class="bd-l">Academic growth (CAASPP proficiency change) ${derived}</div><div class="bd-v">${growthTxt}</div></div>`;
-        const att = (a.attend != null)
-          ? `<div class="bd-row"><div class="bd-l">Attendance (100−chronic) ${rr}</div><div class="bd-v">${a.attend}%</div>${bar(a.attend)}</div>`
-          : `<div class="bd-row"><div class="bd-l">Attendance ${na}</div><div class="bd-v">N/A</div></div>`;
-        const col = (a.college != null)
-          ? `<div class="bd-row"><div class="bd-l">College/Career prepared ${rr}</div><div class="bd-v">${a.college}%</div>${bar(a.college)}</div>`
-          : `<div class="bd-row"><div class="bd-l">College/Career prepared ${na}</div><div class="bd-v">N/A</div></div>`;
-        const grad = (a.grad != null)
-          ? `<div class="bd-row"><div class="bd-l">Graduation (4‑yr cohort) ${rr}</div><div class="bd-v">${a.grad}%</div>${bar(a.grad)}</div>` : "";
-        return prog + att + col + grad; })()}
-    </div>`;
+      ${pts("ELA — Distance from Standard", a.elaDFS)}
+      ${pts("Math — Distance from Standard", a.mathDFS)}
+      ${a.acadProg != null ? `<div class="bd-row"><div class="bd-l">Academic progress (mean ELA+Math change) ${real}</div><div class="bd-v">${a.acadProg >= 0 ? "+" : ""}${a.acadProg} pts</div></div>` : ""}
+      ${pct("Attendance (100−chronic)", a.attend)}
+      ${pct("College/Career prepared", a.college)}
+      ${a.grad != null ? pct("Graduation (4‑yr cohort)", a.grad) : ""}
+    </div>
+    <p style="font-size:12px;color:#64748b;margin:2px 0 8px">Showing <b>${a.year}</b> CA Dashboard data.
+      <b>2026</b> data is expected after <b>Oct 15, 2026</b>.</p>`;
+}
+
+/* ---------- generic multi-year line chart (handles negative values) ---------- */
+function metricChart(pairs, opts) {
+  opts = opts || {};
+  const col = opts.color || "#2563eb";
+  const dec = opts.decimals != null ? opts.decimals : 0;
+  const w = 700, h = 180, padL = 40, padB = 24, padT = 12, padR = 12;
+  const iw = w - padL - padR, ih = h - padT - padB;
+  const xs = pairs.map((p) => p[0]), ys = pairs.map((p) => p[1]);
+  let mn = Math.min.apply(null, ys), mx = Math.max.apply(null, ys);
+  if (mn === mx) { mn -= 1; mx += 1; }
+  const pd = (mx - mn) * 0.12 || 1; mn -= pd; mx += pd;
+  const nx = xs.length;
+  const X = (i) => (nx === 1 ? padL + iw / 2 : padL + (i / (nx - 1)) * iw);
+  const Y = (v) => padT + ih - ((v - mn) / (mx - mn)) * ih;
+  let grid = "";
+  for (let k = 0; k <= 4; k++) {
+    const val = mn + (k / 4) * (mx - mn), gy = Y(val);
+    grid += `<line x1="${padL}" y1="${gy}" x2="${w - padR}" y2="${gy}" stroke="#e2e8f0"/>` +
+      `<text x="${padL - 6}" y="${gy + 3}" text-anchor="end" font-size="10" fill="#94a3b8">${val.toFixed(dec)}</text>`;
+  }
+  if (mn < 0 && mx > 0) {
+    const zy = Y(0);
+    grid += `<line x1="${padL}" y1="${zy}" x2="${w - padR}" y2="${zy}" stroke="#cbd5e1" stroke-dasharray="4 3"/>`;
+  }
+  let xl = "";
+  xs.forEach((yr, i) => { xl += `<text x="${X(i)}" y="${h - 6}" text-anchor="middle" font-size="10" fill="#94a3b8">${yr}</text>`; });
+  const line = pairs.map((p, i) => `${X(i).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ");
+  const dots = pairs.map((p, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="3" fill="${col}"/>`).join("");
+  return `<svg class="hist-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" style="height:180px">
+    ${grid}${xl}
+    <polyline fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" points="${line}"/>
+    ${dots}
+  </svg>`;
+}
+function seriesPairs(obj) {
+  if (!obj) return [];
+  return Object.keys(obj).map(Number).sort((a, b) => a - b).map((y) => [y, obj[String(y)]]);
+}
+function metricChartsBlock(s) {
+  const a = s.acct;
+  if (!a) return "";
+  const ep = seriesPairs(a.elaHist), mp = seriesPairs(a.mathHist), pp = seriesPairs(a.progHist);
+  let out = "";
+  const tag = `<span class="badge real">CA Dashboard</span>`;
+  if (ep.length) out += `<h3 style="margin-top:10px">ELA — Distance from Standard by year ${tag}</h3>${metricChart(ep, { color: "#2563eb" })}`;
+  if (mp.length) out += `<h3 style="margin-top:10px">Math — Distance from Standard by year ${tag}</h3>${metricChart(mp, { color: "#7c3aed" })}`;
+  if (pp.length) out += `<h3 style="margin-top:10px">Academic progress (mean ELA+Math change) by year ${tag}</h3>${metricChart(pp, { color: "#16a34a" })}`;
+  return out;
 }
 
 /* ---------- detail modal ---------- */
@@ -250,6 +282,7 @@ function openDetail(id) {
     ${explainer}
 
     ${isReal ? scoreBreakdown(s) : ""}
+    ${isReal ? metricChartsBlock(s) : ""}
 
     <div class="kpi-row">
       <div class="kpi"><div class="lbl">Enrollment ${isReal ? '<span class="tag-real">real</span>' : '<span class="tag-modeled">modeled</span>'}</div><div class="val">${s.sub.enrollment.toLocaleString()}</div></div>
