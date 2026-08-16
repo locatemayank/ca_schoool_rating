@@ -43,13 +43,36 @@ function sparkline(hist, w = 130, h = 34) {
   </svg>`;
 }
 
-/* ---------- larger SVG history chart ---------- */
-function historyChart(hist) {
+/* ---------- rating forecast (linear trend on real history) ---------- */
+function computeForecast(hist, n) {
+  n = n || 3;
+  if (!hist || hist.length < 3) return [];
+  const xs = hist.map((_, i) => i), ys = hist.map((h) => h.rating);
+  const m = xs.length;
+  const mx = xs.reduce((a, b) => a + b, 0) / m, my = ys.reduce((a, b) => a + b, 0) / m;
+  let num = 0, den = 0;
+  for (let i = 0; i < m; i++) { num += (xs[i] - mx) * (ys[i] - my); den += (xs[i] - mx) ** 2; }
+  const slope = den ? num / den : 0, intc = my - slope * mx;
+  const lastYear = hist[hist.length - 1].year;
+  const out = [];
+  for (let k = 1; k <= n; k++) {
+    let v = intc + slope * ((m - 1) + k);
+    v = Math.max(1, Math.min(10, v));
+    out.push({ year: lastYear + k, rating: Math.round(v * 10) / 10 });
+  }
+  return out;
+}
+
+/* ---------- larger SVG history chart (with optional dashed forecast) ---------- */
+function historyChart(hist, fc) {
+  fc = fc || [];
+  const all = hist.concat(fc.map((p) => ({ year: p.year, rating: p.rating })));
   const w = 700, h = 220, padL = 34, padB = 26, padT = 12, padR = 12;
   const min = 0, max = 10;
   const iw = w - padL - padR, ih = h - padT - padB;
-  const denom = Math.max(1, hist.length - 1);
-  const x = (i) => (hist.length === 1 ? padL + iw / 2 : padL + (i / denom) * iw);
+  const n = all.length, nReal = hist.length;
+  const denom = Math.max(1, n - 1);
+  const x = (i) => (n === 1 ? padL + iw / 2 : padL + (i / denom) * iw);
   const y = (v) => padT + ih - ((v - min) / (max - min)) * ih;
 
   let grid = "";
@@ -61,24 +84,48 @@ function historyChart(hist) {
         font-size="10" fill="#94a3b8">${g}</text>`;
   }
   let xlabels = "";
-  hist.forEach((d, i) => {
-    if (i % 2 === 0 || i === hist.length - 1) {
+  all.forEach((d, i) => {
+    if (i % 2 === 0 || i === n - 1) {
+      const isF = i >= nReal;
       xlabels += `<text x="${x(i)}" y="${h - 6}" text-anchor="middle"
-        font-size="10" fill="#94a3b8">${d.year}</text>`;
+        font-size="10" fill="${isF ? "#a78bfa" : "#94a3b8"}">${d.year}${isF ? "*" : ""}</text>`;
     }
   });
-  const line = hist.map((d, i) => `${x(i).toFixed(1)},${y(d.rating).toFixed(1)}`).join(" ");
-  const area = `${padL},${y(min)} ${line} ${w - padR},${y(min)}`;
+  const col = ratingColor(hist[hist.length - 1].rating);
+  const realLine = hist.map((d, i) => `${x(i).toFixed(1)},${y(d.rating).toFixed(1)}`).join(" ");
+  const area = `${padL},${y(min)} ${realLine} ${x(nReal - 1).toFixed(1)},${y(min)}`;
   const dots = hist.map((d, i) =>
     `<circle cx="${x(i).toFixed(1)}" cy="${y(d.rating).toFixed(1)}" r="3"
        fill="${ratingColor(d.rating)}"/>`).join("");
-  const col = ratingColor(hist[hist.length - 1].rating);
+
+  let band = "", fcLine = "", fcDots = "";
+  if (fc.length) {
+    const startIdx = nReal - 1;
+    const pts = [[startIdx, hist[hist.length - 1].rating]]
+      .concat(fc.map((p, k) => [startIdx + 1 + k, p.rating]));
+    fcLine = pts.map(([i, v]) => `${x(i).toFixed(1)},${y(v).toFixed(1)}`).join(" ");
+    fcDots = fc.map((p, k) =>
+      `<circle cx="${x(startIdx + 1 + k).toFixed(1)}" cy="${y(p.rating).toFixed(1)}" r="3.2"
+         fill="#fff" stroke="${col}" stroke-width="2"/>`).join("");
+    const top = [], bot = [];
+    pts.forEach(([i, v], idx) => {
+      const unc = Math.min(2, 0.4 * idx);
+      top.push(`${x(i).toFixed(1)},${y(Math.min(10, v + unc)).toFixed(1)}`);
+    });
+    for (let idx = pts.length - 1; idx >= 0; idx--) {
+      const [i, v] = pts[idx], unc = Math.min(2, 0.4 * idx);
+      bot.push(`${x(i).toFixed(1)},${y(Math.max(0, v - unc)).toFixed(1)}`);
+    }
+    band = `<polygon points="${top.concat(bot).join(" ")}" fill="${col}18"/>`;
+  }
   return `<svg class="hist-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
     ${grid}${xlabels}
     <polygon points="${area}" fill="${col}22"/>
+    ${band}
     <polyline fill="none" stroke="${col}" stroke-width="2.5"
-      stroke-linejoin="round" points="${line}"/>
-    ${dots}
+      stroke-linejoin="round" points="${realLine}"/>
+    ${fc.length ? `<polyline fill="none" stroke="${col}" stroke-width="2.5" stroke-dasharray="6 5" points="${fcLine}"/>` : ""}
+    ${dots}${fcDots}
   </svg>`;
 }
 
@@ -133,6 +180,11 @@ function insights(s) {
   out.push(["neu", `Peak rating <b>${peak.rating}</b> in ${peak.year}; lowest <b>${low.rating}</b> in ${low.year}.`]);
 
   const real = s.ratingProvenance === "real";
+  if (real) {
+    const fc = computeForecast(s.history, 3);
+    if (fc.length) out.push([fc[fc.length - 1].rating >= s.rating ? "pos" : "neg",
+      `Projected rating (next 3 yrs): <b>${fc.map((p) => p.year + " → " + p.rating).join(", ")}</b> <i>(linear trend, illustrative)</i>.`]);
+  }
   if (real && s.acct) {
     const a = s.acct;
     if (a.acadProg != null) out.push([a.acadProg >= 0 ? "pos" : "neg",
@@ -275,9 +327,10 @@ function openDetail(id) {
       </div>
     </div>
 
-    <h3>Rating history — last decade ${tm.icon}
+    <h3>Rating history &amp; forecast ${tm.icon}
       <span class="trend-tag ${tm.cls}">${tm.word}</span></h3>
-    ${historyChart(s.history)}
+    ${historyChart(s.history, isReal ? computeForecast(s.history, 3) : [])}
+    ${isReal && computeForecast(s.history, 3).length ? `<div style="font-size:12px;color:#64748b;margin:-6px 0 10px">Solid = real (${s.history[0].year}–${s.history[s.history.length - 1].year}); <span style="color:#7c3aed">dashed*</span> = projected next 3 yrs (linear‑trend extrapolation of this school's own history — illustrative, not an official prediction).</div>` : ""}
 
     ${explainer}
 

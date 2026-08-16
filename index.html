@@ -8,23 +8,34 @@
 </head>
 <body>
 <header class="app-header">
-  <div class="brand">
-    <span class="logo">🎓</span>
-    <div>
-      <h1>California School Finder</h1>
-      <p class="tagline">Assigned &amp; nearby public schools, decade rating trends, and buyer insights</p>
+  <div class="hero">
+    <div class="brand">
+      <span class="logo">🎓</span>
+      <div>
+        <h1>California School Finder</h1>
+        <p class="tagline">Real CAASPP ratings, a decade of trends, and a data‑driven forecast — for any California address.</p>
+      </div>
+    </div>
+    <div class="hero-badges">
+      <span class="hero-badge">🏫 Assigned + nearby</span>
+      <span class="hero-badge">📈 2017–2025 trends</span>
+      <span class="hero-badge">🔮 Next‑years forecast</span>
+      <span class="hero-badge">✅ Official CA data</span>
     </div>
   </div>
 </header>
 
 <section class="search-bar">
-  <div class="search-row">
-    <input id="addressInput" type="text"
-           placeholder="Enter a California address (e.g. 1600 Amphitheatre Pkwy, Mountain View, CA)"
-           value="1224 Rosebriar Way, San Jose, CA 95131" />
-    <button id="searchBtn">🔍 Find Schools</button>
+  <div class="search-card">
+    <div class="search-row">
+      <span class="search-ic">📍</span>
+      <input id="addressInput" type="text"
+             placeholder="Enter a California address — e.g. 1600 Amphitheatre Pkwy, Mountain View, CA"
+             value="1224 Rosebriar Way, San Jose, CA 95131" />
+      <button id="searchBtn"><span class="btn-ic">🔍</span> Find schools</button>
+    </div>
+    <div class="search-hint" id="statusLine">Type an address and press <b>Find schools</b> — or hit Enter.</div>
   </div>
-  <div class="search-hint" id="statusLine">Enter a CA address and press <b>Find Schools</b>.</div>
 </section>
 
 <main id="results" class="results hidden">
