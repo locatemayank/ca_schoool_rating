@@ -1,5 +1,10 @@
-/* CA School Finder — service worker (offline-capable PWA) */
-const CACHE = "casf-v4";
+/* CA School Finder — service worker (offline-capable PWA)
+ * Strategy:
+ *  - HTML / CSS / JS  -> NETWORK-FIRST (always get latest code; cache as offline fallback)
+ *  - other same-origin (data/*, icons/*) -> CACHE-FIRST (fast, offline)
+ *  - cross-origin (geocoders) -> pass through
+ */
+const CACHE = "casf-v5";
 const ASSETS = [
   "./",
   "index.html",
@@ -32,13 +37,32 @@ self.addEventListener("activate", (e) => {
   );
 });
 
-// Cache-first for same-origin GET; fall back to network and cache the result.
-// Never cache cross-origin (geocoders) — just pass through.
+function isCodeAsset(url, req) {
+  if (req.mode === "navigate") return true;
+  return /\.(?:html|css|js)(?:\?.*)?$/.test(url.pathname);
+}
+
 self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== self.location.origin) return; // let census/nominatim pass
+
+  if (isCodeAsset(url, req)) {
+    // NETWORK-FIRST: fetch fresh, update cache, fall back to cache offline.
+    e.respondWith(
+      fetch(req).then((res) => {
+        if (res && res.status === 200) {
+          const copy = res.clone();
+          caches.open(CACHE).then((c) => c.put(req, copy));
+        }
+        return res;
+      }).catch(() => caches.match(req).then((hit) => hit || caches.match("index.html")))
+    );
+    return;
+  }
+
+  // CACHE-FIRST for data/icons.
   e.respondWith(
     caches.match(req).then((hit) => {
       if (hit) return hit;
@@ -48,7 +72,7 @@ self.addEventListener("fetch", (e) => {
           caches.open(CACHE).then((c) => c.put(req, copy));
         }
         return res;
-      }).catch(() => caches.match("index.html"));
+      }).catch(() => hit);
     })
   );
 });

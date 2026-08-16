@@ -150,8 +150,23 @@
 <script>
   // Register the service worker for offline/installable PWA (Android + iOS).
   if ("serviceWorker" in navigator) {
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (refreshing) return; refreshing = true; window.location.reload();
+    });
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("sw.js").catch(() => {});
+      navigator.serviceWorker.register("sw.js").then((reg) => {
+        // If an updated SW is waiting, activate it immediately.
+        if (reg.waiting) reg.waiting.postMessage("skipWaiting");
+        reg.addEventListener("updatefound", () => {
+          const nw = reg.installing;
+          if (nw) nw.addEventListener("statechange", () => {
+            if (nw.state === "installed" && navigator.serviceWorker.controller) {
+              nw.postMessage && nw.postMessage("skipWaiting");
+            }
+          });
+        });
+      }).catch(() => {});
     });
   }
 </script>
