@@ -194,7 +194,7 @@ body {
 .detail-head { display: flex; gap: 16px; align-items: center; margin-bottom: 12px; }
 .detail-sub { color: var(--muted); font-size: 14px; }
 
-.hist-chart { width: 100%; height: 220px; margin: 16px 0; }
+.hist-chart { width: 100%; height: 220px; margin: 16px 0; display: block; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
 .rating-explainer {
   background: #fffbeb; border: 1px solid #fde68a; color: #78350f;
   border-radius: 10px; padding: 10px 12px; font-size: 13px; margin: 4px 0 14px;

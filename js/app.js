@@ -119,6 +119,7 @@ function historyChart(hist, fc) {
     band = `<polygon points="${top.concat(bot).join(" ")}" fill="${col}18"/>`;
   }
   return `<svg class="hist-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet">
+    <rect x="0" y="0" width="${w}" height="${h}" fill="#ffffff"/>
     ${grid}${xlabels}
     <polygon points="${area}" fill="${col}22"/>
     ${band}
@@ -259,6 +260,7 @@ function metricChart(pairs, opts) {
   const line = pairs.map((p, i) => `${X(i).toFixed(1)},${Y(p[1]).toFixed(1)}`).join(" ");
   const dots = pairs.map((p, i) => `<circle cx="${X(i).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="3" fill="${col}"/>`).join("");
   return `<svg class="hist-chart" viewBox="0 0 ${w} ${h}" preserveAspectRatio="xMidYMid meet" style="height:180px">
+    <rect x="0" y="0" width="${w}" height="${h}" fill="#ffffff"/>
     ${grid}${xl}
     <polyline fill="none" stroke="${col}" stroke-width="2.5" stroke-linejoin="round" points="${line}"/>
     ${dots}
@@ -332,8 +334,6 @@ function openDetail(id) {
     ${historyChart(s.history, isReal ? computeForecast(s.history, 3) : [])}
     ${isReal && computeForecast(s.history, 3).length ? `<div style="font-size:12px;color:#64748b;margin:-6px 0 10px">Solid = real (${s.history[0].year}–${s.history[s.history.length - 1].year}); <span style="color:#7c3aed">dashed*</span> = projected next 3 yrs (linear‑trend extrapolation of this school's own history — illustrative, not an official prediction).</div>` : ""}
 
-    ${explainer}
-
     ${isReal ? scoreBreakdown(s) : ""}
     ${isReal ? metricChartsBlock(s) : ""}
 
@@ -359,7 +359,10 @@ function openDetail(id) {
     <table class="hist-table">
       <thead><tr><th>Year</th><th>Rating</th></tr></thead>
       <tbody>${rows}</tbody>
-    </table>`;
+    </table>
+
+    <h3 style="margin-top:14px">How this rating is calculated</h3>
+    ${explainer}`;
   $("detailOverlay").classList.remove("hidden");
 }
 
