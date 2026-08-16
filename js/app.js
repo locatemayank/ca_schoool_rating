@@ -457,24 +457,17 @@ function renderMap(loc, data) {
     g.addEventListener("click", () => openDetail(g.dataset.id)));
 }
 
-/* ---------- main search ---------- */
-async function runSearch() {
-  const addr = $("addressInput").value.trim();
-  if (!addr) return;
-  $("statusLine").innerHTML = "⏳ Geocoding address…";
-  const loc = await SchoolData.geocodeAddress(addr);
-  if (!loc) {
-    $("statusLine").innerHTML =
-      "❌ Could not geocode that address. Try adding city + ZIP (e.g. \"…, San Jose, CA 95127\").";
-    return;
-  }
+/* ---------- render results for a resolved location ---------- */
+async function renderForLoc(loc, label) {
   $("statusLine").innerHTML = "⏳ Loading nearby schools…";
   const data = await SchoolData.getSchoolsNear(loc.lat, loc.lon, loc.city);
   LAST = { loc, data };
 
-  $("locTitle").textContent = loc.city ? `${loc.city}${loc.zip ? " " + loc.zip : ""}` : "Your location";
+  $("locTitle").textContent = loc.city
+    ? `${loc.city}${loc.zip ? " " + loc.zip : ""}`
+    : (loc.source === "gps" ? "Your current location" : "Your location");
   $("locMeta").innerHTML =
-    `<b>Matched:</b> ${loc.matched || addr}<br>` +
+    `<b>Matched:</b> ${loc.matched || label || ""}<br>` +
     `<b>Coordinates:</b> ${loc.lat.toFixed(5)}, ${loc.lon.toFixed(5)} ` +
     `&nbsp;·&nbsp; <span class="badge real">geocode: ${loc.source}</span> ` +
     `<span class="badge real">schools: CA DOE</span> ` +
@@ -485,12 +478,55 @@ async function runSearch() {
   renderAll();
   renderMap(loc, data);
   $("statusLine").innerHTML =
-    `✅ Showing 3 assigned + ${data.nearby.length} nearby schools around your address.`;
+    `✅ Showing 3 assigned + ${data.nearby.length} nearby schools near you.`;
   $("results").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+/* ---------- main search (by typed address) ---------- */
+async function runSearch() {
+  const addr = $("addressInput").value.trim();
+  if (!addr) { $("statusLine").innerHTML = "Enter an address, or tap <b>Use my location</b>."; return; }
+  $("statusLine").innerHTML = "⏳ Geocoding address…";
+  const loc = await SchoolData.geocodeAddress(addr);
+  if (!loc) {
+    $("statusLine").innerHTML =
+      "❌ Could not geocode that address. Try adding city + ZIP (e.g. \"…, San Jose, CA 95127\").";
+    return;
+  }
+  await renderForLoc(loc, addr);
+}
+
+/* ---------- use device geolocation (phone/desktop) ---------- */
+function useMyLocation() {
+  if (!("geolocation" in navigator)) {
+    $("statusLine").innerHTML = "❌ This browser doesn't support location. Type an address instead.";
+    return;
+  }
+  const btn = $("useLocBtn");
+  if (btn) btn.disabled = true;
+  $("statusLine").innerHTML = "📍 Requesting your location… (allow the permission prompt)";
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      const loc = { lat: latitude, lon: longitude, matched: "Your device location (GPS)",
+        city: "", zip: "", source: "gps" };
+      if (btn) btn.disabled = false;
+      await renderForLoc(loc, "GPS");
+    },
+    (err) => {
+      if (btn) btn.disabled = false;
+      const msg = err && err.code === 1
+        ? "❌ Location permission denied. Enable it in your browser/site settings, or type an address."
+        : "❌ Couldn't get your location. Type an address instead.";
+      $("statusLine").innerHTML = msg;
+    },
+    { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+  );
 }
 
 /* ---------- events ---------- */
 $("searchBtn").addEventListener("click", runSearch);
+$("useLocBtn").addEventListener("click", useMyLocation);
 $("addressInput").addEventListener("keydown", (e) => { if (e.key === "Enter") runSearch(); });
 $("nearbyLevel").addEventListener("change", renderNearby);
 $("nearbySort").addEventListener("change", renderNearby);
