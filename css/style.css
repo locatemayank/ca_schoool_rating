@@ -239,7 +239,46 @@ body {
 }
 .app-footer code { background: #e2e8f0; padding: 1px 5px; border-radius: 4px; }
 
-@media (max-width: 560px) {
-  .search-row { flex-direction: column; }
-  .brand .logo { font-size: 34px; }
+/* ---------- Mobile / PWA optimizations ---------- */
+@media (max-width: 640px) {
+  /* Respect notches / safe areas */
+  .app-header { padding: calc(22px + env(safe-area-inset-top)) 16px 22px; }
+  .search-bar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+  .results   { padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
+  .app-footer{ padding-left: max(16px, env(safe-area-inset-left)); padding-right: max(16px, env(safe-area-inset-right)); padding-bottom: calc(20px + env(safe-area-inset-bottom)); }
+
+  .app-header h1 { font-size: 24px; }
+  .tagline { font-size: 13.5px; }
+  .brand .logo { width: 52px; height: 52px; font-size: 30px; border-radius: 14px; }
+  .hero-badges { gap: 6px; margin-top: 12px; }
+  .hero-badge { font-size: 11.5px; padding: 5px 10px; }
+
+  /* Search: stack, make the ADDRESS INPUT wider/taller; full-width button */
+  .search-card { padding: 12px 10px 8px; border-radius: 16px; }
+  .search-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .search-ic { display: none; }             /* reclaim horizontal space for the field */
+  #addressInput {
+    width: 100%; font-size: 16px;           /* 16px prevents iOS auto-zoom */
+    padding: 15px 16px; border-radius: 14px;
+  }
+  #searchBtn { width: 100%; height: 52px; justify-content: center; font-size: 16px; border-radius: 14px; }
+
+  /* One-column content on phones */
+  .school-grid { grid-template-columns: 1fr; gap: 12px; }
+  .kpi-row { gap: 10px; }
+  .kpi { min-width: 0; flex: 1 1 46%; }
+  .nearby-controls { gap: 12px; }
+  .nearby-controls select { flex: 1; }
+
+  /* Charts a touch shorter to fit the viewport */
+  .hist-chart { height: 190px; }
+
+  /* Detail modal edge-to-edge with safe-area padding */
+  .overlay { padding: 14px 10px calc(14px + env(safe-area-inset-bottom)); align-items: stretch; }
+  .detail-panel { padding: 18px 16px; border-radius: 16px; }
+  .detail-head { gap: 12px; }
+  .detail-panel h2 { font-size: 20px; }
+
+  #map { height: 260px; }
+  .section-title { font-size: 18px; }
 }
