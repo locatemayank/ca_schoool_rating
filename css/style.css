@@ -190,9 +190,15 @@ body {
   padding: 30px 16px; overflow-y: auto;
 }
 .detail-panel {
-  background: #fff; border-radius: 18px; max-width: 760px; width: 100%;
+  background: #ffffff !important; border-radius: 18px; max-width: 760px; width: 100%;
   padding: 26px; position: relative; box-shadow: var(--shadow);
+  color: var(--ink); isolation: isolate;
 }
+/* Safety net: force every text node in the popup to paint with its own color
+   (prevents any inherited transparent gradient-clip from hiding text). */
+.detail-panel, .detail-panel * { -webkit-text-fill-color: currentColor; }
+.detail-panel h2, .detail-panel h3 { color: var(--ink); background: none; }
+.detail-panel svg text { -webkit-text-fill-color: currentColor; }
 .close-btn {
   position: absolute; top: 14px; right: 16px; border: none; background: #f1f5f9;
   width: 34px; height: 34px; border-radius: 50%; cursor: pointer; font-size: 16px;

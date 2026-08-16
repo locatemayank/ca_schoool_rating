@@ -1,5 +1,5 @@
 /* CA School Finder — service worker (offline-capable PWA) */
-const CACHE = "casf-v3";
+const CACHE = "casf-v4";
 const ASSETS = [
   "./",
   "index.html",
